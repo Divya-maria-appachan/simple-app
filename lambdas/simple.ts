@@ -1,7 +1,6 @@
 import { Handler } from "aws-lambda";
 
-
-export const lambdaHandler: Handler = async (event, context) => {
+export const handler: Handler = async (event, context) => {
   try {
     console.log("I was invoked");
     return {
