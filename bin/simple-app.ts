@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { SimpleAppStack } from '../lib/simple-app-stack';
+import { SimpleAppStack } from '../lib/rest-api-stack.ts';
 
 const app = new cdk.App();
 new SimpleAppStack(app, 'SimpleAppStack', {

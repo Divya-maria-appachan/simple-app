@@ -5,6 +5,7 @@ import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as custom from "aws-cdk-lib/custom-resources";
 import { generateBatch } from "../shared/util";
 import { movieReviews } from "../seed/movies"; 
+import * as apig from "aws-cdk-lib/aws-apigateway";
 
 
 import { Construct } from 'constructs';
@@ -30,6 +31,9 @@ export class SimpleAppStack extends cdk.Stack {
       },
     });
     new cdk.CfnOutput(this, "Simple Function Url", { value: simpleFnURL.url });
+
+
+    
   
     const MovieReviewsTable = new dynamodb.Table(this, "MovieReviewsTable", {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -37,7 +41,7 @@ export class SimpleAppStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Adjust as per your requirement
       tableName: "MovieReviews",
     });
-    
+
     // Add other attributes: ReviewerName, Content, and Rating
     MovieReviewsTable.addGlobalSecondaryIndex({
       indexName: 'ReviewerIndex',
@@ -82,6 +86,28 @@ const getMovieByIdURL = getMovieByIdFn.addFunctionUrl({
     allowedOrigins: ['*'],
   },
 });
+
+
+// REST API 
+const api = new apig.RestApi(this, "RestAPI", {
+  description: "demo api",
+  deployOptions: {
+    stageName: "dev",
+  },
+  defaultCorsPreflightOptions: {
+    allowHeaders: ["Content-Type", "X-Amz-Date"],
+    allowMethods: ["OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowCredentials: true,
+    allowOrigins: ["*"],
+  },
+});
+
+const moviesEndpoint = api.root.addResource("movies");
+const movieEndpoint = moviesEndpoint.addResource("{MovieId}");
+movieEndpoint.addMethod(
+  "GET",
+  new apig.LambdaIntegration(getMovieByIdFn, { proxy: true })
+);
 
 MovieReviewsTable.grantReadData(getMovieByIdFn); // Grant read access to movieReviewsTable
 
