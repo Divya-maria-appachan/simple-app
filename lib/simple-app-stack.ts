@@ -31,16 +31,15 @@ export class SimpleAppStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, "Simple Function Url", { value: simpleFnURL.url });
   
-    const movieReviewsTable = new dynamodb.Table(this, "MovieReviewsTable", {
+    const MovieReviewsTable = new dynamodb.Table(this, "MovieReviewsTable", {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       partitionKey: { name: "MovieId", type: dynamodb.AttributeType.NUMBER }, // Partition Key: MovieId of type Number
-      sortKey: { name: "ReviewDate", type: dynamodb.AttributeType.STRING }, // Sort Key: ReviewDate of type String
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Adjust as per your requirement
       tableName: "MovieReviews",
     });
     
     // Add other attributes: ReviewerName, Content, and Rating
-    movieReviewsTable.addGlobalSecondaryIndex({
+    MovieReviewsTable.addGlobalSecondaryIndex({
       indexName: 'ReviewerIndex',
       partitionKey: { name: 'ReviewerName', type: dynamodb.AttributeType.STRING }
     });
@@ -50,15 +49,44 @@ export class SimpleAppStack extends cdk.Stack {
         action: "batchWriteItem",
         parameters: {
           RequestItems: {
-            [movieReviewsTable.tableName]: generateBatch(movieReviews), // Corrected variable name
+            [MovieReviewsTable.tableName]: generateBatch(movieReviews), // Corrected variable name
           },
         },
         physicalResourceId: custom.PhysicalResourceId.of("movieReviewsDdbInitData"),
       },
       policy: custom.AwsCustomResourcePolicy.fromSdkCalls({
-        resources: [movieReviewsTable.tableArn],
+        resources: [MovieReviewsTable.tableArn],
       }),
     });
+
+
+const getMovieByIdFn = new lambdanode.NodejsFunction(
+  this,
+  'GetMovieByIdFn',
+  {
+    architecture: lambda.Architecture.ARM_64,
+    runtime: lambda.Runtime.NODEJS_16_X,
+    entry: `${__dirname}/../lambdas/getMovieById.ts`,
+    timeout: cdk.Duration.seconds(10),
+    memorySize: 128,
+    environment: {
+      TABLE_NAME: MovieReviewsTable.tableName, // Change to movieReviewsTable
+      REGION: 'us-east-1',
+    },
+  }
+);
+
+const getMovieByIdURL = getMovieByIdFn.addFunctionUrl({
+  authType: lambda.FunctionUrlAuthType.NONE,
+  cors: {
+    allowedOrigins: ['*'],
+  },
+});
+
+MovieReviewsTable.grantReadData(getMovieByIdFn); // Grant read access to movieReviewsTable
+
+new cdk.CfnOutput(this, 'Get Movie Function Url', { value: getMovieByIdURL.url });
+
 
   }
   
