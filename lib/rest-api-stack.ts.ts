@@ -38,6 +38,7 @@ export class SimpleAppStack extends cdk.Stack {
     const MovieReviewsTable = new dynamodb.Table(this, "MovieReviewsTable", {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       partitionKey: { name: "MovieId", type: dynamodb.AttributeType.NUMBER }, // Partition Key: MovieId of type Number
+      sortKey: { name: "ReviewDate", type: dynamodb.AttributeType.STRING },
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Adjust as per your requirement
       tableName: "MovieReviews",
     });
@@ -87,6 +88,20 @@ const getMovieByIdURL = getMovieByIdFn.addFunctionUrl({
   },
 });
 
+const newMovieFn = new lambdanode.NodejsFunction(this, "AddMovieFn", {
+  architecture: lambda.Architecture.ARM_64,
+  runtime: lambda.Runtime.NODEJS_16_X,
+  entry: `${__dirname}/../lambdas/addMovie.ts`,
+  timeout: cdk.Duration.seconds(10),
+  memorySize: 128,
+  environment: {
+    TABLE_NAME: MovieReviewsTable.tableName,
+    REGION: "us-east-1",
+  },
+});
+
+MovieReviewsTable.grantReadWriteData(newMovieFn);
+
 
 // REST API 
 const api = new apig.RestApi(this, "RestAPI", {
@@ -108,6 +123,13 @@ movieEndpoint.addMethod(
   "GET",
   new apig.LambdaIntegration(getMovieByIdFn, { proxy: true })
 );
+
+// Inside your stack class
+moviesEndpoint.addMethod(
+  "POST",
+  new apig.LambdaIntegration(newMovieFn, { proxy: true })
+);
+
 
 MovieReviewsTable.grantReadData(getMovieByIdFn); // Grant read access to movieReviewsTable
 
