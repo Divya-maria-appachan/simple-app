@@ -1,75 +1,3 @@
-// import { APIGatewayProxyHandlerV2 } from "aws-lambda";
-// import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-// import { DynamoDBDocumentClient, UpdateCommand } from "@aws-sdk/lib-dynamodb";
-// import Ajv from "ajv";
-// import schema from "../shared/types.schema.json";
-
-// const ajv = new Ajv();
-// const isValidBodyParams = ajv.compile(schema.definitions["MovieReview"] || {});
-
-// const ddbDocClient = createDDbDocClient();
-
-// export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
-//   try {
-//     console.log("Event: ", event);
-
-//     const { MovieId, ReviewerName, ReviewDate, Content, Rating } = JSON.parse(event.body || "{}");
-
-//     if (!MovieId || !ReviewerName || !ReviewDate || !Content || !Rating) {
-//       return response(400, { message: "Invalid request body: MovieId, ReviewerName, ReviewDate, Content, and Rating are required fields" });
-//     }
-
-//     await updateReviewText(MovieId, ReviewerName, Content);
-
-//     return response(200, { message: "Review text updated successfully" });
-//   } catch (error: any) {
-//     console.error("Error:", error.message);
-//     return response(500, { error: error.message });
-//   }
-// };
-
-// async function updateReviewText(MovieId, ReviewerName, ReviewText) {
-//   await ddbDocClient.send(
-//     new UpdateCommand({
-//       TableName: process.env.TABLE_NAME,
-//       IndexName: 'ReviewerIndex', // Assuming you have a GSI on 'ReviewerName'
-      
-//       Key: {
-//         "MovieId": MovieId,
-//         "ReviewerName": ReviewerName
-//       },
-//       UpdateExpression: "SET ReviewText = :reviewText",
-//       ExpressionAttributeValues: {
-//         ":ReviewText": ReviewText
-//       }
-//     })
-//   );
-// }
-
-// function createDDbDocClient() {
-//   const ddbClient = new DynamoDBClient({ region: process.env.REGION });
-//   const marshallOptions = {
-//     convertEmptyValues: true,
-//     removeUndefinedValues: true,
-//     convertClassInstanceToMap: true,
-//   };
-//   const unmarshallOptions = {
-//     wrapNumbers: false,
-//   };
-//   const translateConfig = { marshallOptions, unmarshallOptions };
-//   return DynamoDBDocumentClient.from(ddbClient, translateConfig);
-// }
-
-// function response(statusCode, body) {
-//   return {
-//     statusCode,
-//     headers: {
-//       "content-type": "application/json",
-//     },
-//     body: JSON.stringify(body),
-//   };
-// }
-
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
@@ -86,7 +14,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
     // Print Event
     console.log("Event: ", event);
     
-    const { MovieId, ReviewerName } = event.pathParameters || {};
+    const parameters  = event?.pathParameters;
+    const MovieId = parameters?.MovieId ? parseInt(parameters.MovieId) : undefined;
+    const ReviewerName = parameters?.ReviewerFilter ? parameters.ReviewerFilter : undefined;
     if (!MovieId || !ReviewerName) {
       return {
         statusCode: 400,

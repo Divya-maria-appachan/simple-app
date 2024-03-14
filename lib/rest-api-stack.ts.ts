@@ -14,41 +14,28 @@ export class SimpleAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const simpleFn = new lambdanode.NodejsFunction(this, "SimpleFn", {
-
-      architecture: lambda.Architecture.ARM_64,
-      runtime: lambda.Runtime.NODEJS_16_X,
-      entry: `${__dirname}/../lambdas/simple.ts`,
-      timeout: cdk.Duration.seconds(10),
-      memorySize: 128,
-    });
     
 
-    const simpleFnURL = simpleFn.addFunctionUrl({
-      authType: lambda.FunctionUrlAuthType.AWS_IAM,   // CHANGE
-      cors: {
-        allowedOrigins: ["*"],
-      },
-    });
-    new cdk.CfnOutput(this, "Simple Function Url", { value: simpleFnURL.url });
-
-
-    
+    //The dynamodb table for the Movie Review
   
     const MovieReviewsTable = new dynamodb.Table(this, "MovieReviewsTable", {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       partitionKey: { name: "MovieId", type: dynamodb.AttributeType.NUMBER }, // Partition Key: MovieId of type Number
-      sortKey: { name: "ReviewDate", type: dynamodb.AttributeType.STRING   },
+      // sortKey: { name: "ReviewDate", type: dynamodb.AttributeType.STRING   },
+      sortKey: { name: 'ReviewerName', type: dynamodb.AttributeType.STRING },
+      
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Adjust as per your requirement
       tableName: "MovieReviews",
     });
 
-        // Add other attributes: ReviewerName, Content, and Rating
     MovieReviewsTable.addGlobalSecondaryIndex({
       indexName: 'ReviewerIndex',
       partitionKey: { name: 'ReviewerName', type: dynamodb.AttributeType.STRING },
       sortKey: { name: "MovieId", type: dynamodb.AttributeType.NUMBER },
     });
+
+        // Add other attributes: ReviewerName, Content, and Rating
+    // 
     new custom.AwsCustomResource(this, "movieReviewsDdbInitData", {
       onCreate: {
         service: "DynamoDB",
@@ -66,13 +53,13 @@ export class SimpleAppStack extends cdk.Stack {
     });
 
 
-const getMovieByIdFn = new lambdanode.NodejsFunction(
+const getMovieReview = new lambdanode.NodejsFunction(
   this,
-  'GetMovieByIdFn',
+  'GetMovieReview',
   {
     architecture: lambda.Architecture.ARM_64,
     runtime: lambda.Runtime.NODEJS_16_X,
-    entry: `${__dirname}/../lambdas/getMovieById.ts`,
+    entry: `${__dirname}/../lambdas/getMovieReview.ts`,
     timeout: cdk.Duration.seconds(10),
     memorySize: 128,
     environment: {
@@ -82,7 +69,7 @@ const getMovieByIdFn = new lambdanode.NodejsFunction(
   }
 );
 
-const getMovieByIdURL = getMovieByIdFn.addFunctionUrl({
+const getMovieReviewURL = getMovieReview.addFunctionUrl({
   authType: lambda.FunctionUrlAuthType.NONE,
   cors: {
     allowedOrigins: ['*'],
@@ -117,55 +104,32 @@ const getReviewsByReviewerURL = getReviewsByReviewer.addFunctionUrl({
 MovieReviewsTable.grantReadData(getReviewsByReviewer);
 
 
-// const getReviewsByMinRate = new lambdanode.NodejsFunction(
-//   this,
-//   'GetReviewsByMinRate',
-//   {
-//     architecture: lambda.Architecture.ARM_64,
-//     runtime: lambda.Runtime.NODEJS_16_X,
-//     entry: `${__dirname}/../lambdas/getReviewsByMinRate.ts`,
-//     timeout: cdk.Duration.seconds(10),
-//     memorySize: 128,
-//     environment: {
-//       TABLE_NAME: MovieReviewsTable.tableName, // Change to movieReviewsTable
-//       REGION: 'us-east-1',
-//     },
-//   }
-// );
-
-// const getReviewsByMinRateURL = getReviewsByMinRate.addFunctionUrl({
-//   authType: lambda.FunctionUrlAuthType.NONE,
-//   cors: {
-//     allowedOrigins: ['*'],
-//   },
-// });
-// MovieReviewsTable.grantReadData(getReviewsByMinRate);
 
 
 
-const getReviewsByYear = new lambdanode.NodejsFunction(
+const getReviewsByFilter = new lambdanode.NodejsFunction(
   this,
-  'GetReviewsByYear',
+  'GetReviewsByFilter',
   {
     architecture: lambda.Architecture.ARM_64,
     runtime: lambda.Runtime.NODEJS_16_X,
-    entry: `${__dirname}/../lambdas/getReviewsByYear.ts`,
+    entry: `${__dirname}/../lambdas/getReviewsByFilter.ts`,
     timeout: cdk.Duration.seconds(10),
     memorySize: 128,
     environment: {
-      TABLE_NAME: MovieReviewsTable.tableName, // Change to movieReviewsTable
+      TABLE_NAME: MovieReviewsTable.tableName, 
       REGION: 'us-east-1',
     },
   }
 );
 
-const getReviewsByYearURL = getReviewsByYear.addFunctionUrl({
+const getReviewsByFilterURL = getReviewsByFilter.addFunctionUrl({
   authType: lambda.FunctionUrlAuthType.NONE,
   cors: {
     allowedOrigins: ['*'],
   },
 });
-MovieReviewsTable.grantReadData(getReviewsByYear);
+
 
 
 const newMovieFn = new lambdanode.NodejsFunction(this, "AddMovieFn", {
@@ -213,65 +177,51 @@ const api = new apig.RestApi(this, "RestAPI", {
   },
 });
 
-//REST API2
-const api2 = new apig.RestApi(this, "RestAPI2", {
-  description: "demo api",
-  deployOptions: {
-    stageName: "dev",
-  },
-  defaultCorsPreflightOptions: {
-    allowHeaders: ["Content-Type", "X-Amz-Date"],
-    allowMethods: ["OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowCredentials: true,
-    allowOrigins: ["*"],
-  },
-});
+
 
 const moviesEndpoint = api.root.addResource("movies");
 const movieEndpoint = moviesEndpoint.addResource("{MovieId}");
 const reviewsResource = movieEndpoint.addResource("reviews");
 
-const reviewerNameResource = reviewsResource.addResource("{ReviewerName}");
+const reviewerNameResource = reviewsResource.addResource("{ReviewerFilter}");
 const reviewsend = api.root.addResource("reviews");
 const reviewerResource = reviewsend.addResource("{ReviewerName}");
-const yearMovies = api2.root.addResource("movies");
-const yearMovie = yearMovies.addResource("{MovieId}");
-const yearReviews = yearMovie.addResource("reviews");
-const reviewsByYear = yearReviews.addResource("{Year}");
+
 
 reviewsResource.addMethod(
   "GET",
-  new apig.LambdaIntegration(getMovieByIdFn, { proxy: true })
-);
-reviewerNameResource.addMethod(
-  "GET",
-  new apig.LambdaIntegration(getReviewsByReviewer, { proxy: true })
+  new apig.LambdaIntegration(getMovieReview, { proxy: true })
 );
 
-// Inside your stack class
+
+reviewerNameResource.addMethod(
+  "GET",
+  new apig.LambdaIntegration(getReviewsByFilter, { proxy: true })
+);
+
+
 moviesEndpoint.addMethod(
   "POST",
   new apig.LambdaIntegration(newMovieFn, { proxy: true })
 );
+
 reviewerNameResource.addMethod(
   'PUT', 
   new apig.LambdaIntegration(updateMovie, { proxy: true })
   );
 
-  reviewsByYear.addMethod(
-    'GET', 
-    new apig.LambdaIntegration( getReviewsByYear, { proxy: true })
-    );
+  
     reviewerResource.addMethod(
       'GET', 
       new apig.LambdaIntegration( getReviewsByReviewer, { proxy: true })
       );
-
-MovieReviewsTable.grantReadData(getMovieByIdFn); // Grant read access to movieReviewsTable
+// Grant read access to movieReviewsTable
+MovieReviewsTable.grantReadData(getMovieReview); 
 MovieReviewsTable.grantReadWriteData(updateMovie);
+MovieReviewsTable.grantReadData(getReviewsByFilter);
 
 
-new cdk.CfnOutput(this, 'Get Movie Function Url', { value: getMovieByIdURL.url });
+new cdk.CfnOutput(this, 'Get Movie Function Url', { value: getMovieReviewURL.url });
 
 // new cdk.CfnOutput(this, 'Get Review By Reviewer Function Url', { value: getMovieReviewByReviewerURL.url });
 new cdk.CfnOutput(this, 'Get Reviews Function Url', { value: getReviewsByReviewerURL.url });

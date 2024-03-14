@@ -7,7 +7,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {    
       console.log("Event: ", event);
       const parameters  = event?.pathParameters;
       const MovieId = parameters?.MovieId ? parseInt(parameters.MovieId) : undefined;
-      const ReviewerName = parameters?.ReviewerName || undefined;
+      // const ReviewerName = parameters?.ReviewerName || undefined;
       const queryStringParameters = event?.queryStringParameters;
       const minRating = queryStringParameters?.minRating ? parseInt(queryStringParameters.minRating): undefined
       if (!MovieId) {
@@ -20,20 +20,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {    
       };
     }
     var commandOutput :any;
-    if (ReviewerName) {
-      // Retrieve specific review by reviewerName for the specified MovieId from DynamoDB
-      commandOutput = await ddbDocClient.send(
-        new QueryCommand({
-          TableName: process.env.TABLE_NAME, // Assuming you have set this environment variable
-          IndexName: 'ReviewerIndex', // Assuming you have a GSI on 'ReviewerName'
-          KeyConditionExpression: "MovieId = :MovieId AND ReviewerName = :ReviewerName",
-          ExpressionAttributeValues: {
-            ":MovieId": MovieId,
-            ":ReviewerName": ReviewerName,
-          },
-        })
-      );
-    } else if (minRating !== undefined) {
+   
+       if (minRating !== undefined) {
       // Retrieve movie reviews with the same MovieId and rating greater than or equal to minRating from DynamoDB
       commandOutput = await ddbDocClient.send(
         new QueryCommand({
@@ -46,7 +34,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {    
           },
         })
       );
-    } else {
+    }
+
+    
+    else {
       // Retrieve all movie reviews with the same MovieId from DynamoDB
       commandOutput = await ddbDocClient.send(
         new QueryCommand({
