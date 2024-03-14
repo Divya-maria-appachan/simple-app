@@ -41,7 +41,7 @@ export class AuthAppStack extends cdk.Stack {
   
       this.auth = authApi.root.addResource("auth");
   
-      // Add the first resource
+      // Add resources
       this.addAuthRoute(
         "signup",
         "POST",
@@ -49,12 +49,25 @@ export class AuthAppStack extends cdk.Stack {
         "signup.ts"
       );
   
-      // Add the second resource
       this.addAuthRoute(
         "confirm_signup",
         "POST",
         "ConfirmFn",
         "confirm-signup.ts"
+      );
+  
+      this.addAuthRoute(
+        "signin",
+        "POST",
+        "SigninFn",
+        "signin.ts"
+      );
+  
+      this.addAuthRoute(
+        "signout",
+        "GET",
+        "SignoutFn",
+        "signout.ts"
       );
     }
   
@@ -77,6 +90,7 @@ export class AuthAppStack extends cdk.Stack {
           REGION: Aws.REGION,
         },
       };
+  
   
       const resource = this.auth.addResource(resourceName);
   
