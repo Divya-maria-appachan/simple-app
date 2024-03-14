@@ -196,7 +196,7 @@ reviewsResource.addMethod(
 
 reviewerNameResource.addMethod(
   "GET",
-  new apig.LambdaIntegration(getReviewsByFilter, { proxy: true })
+  new apig.LambdaIntegration(getReviewsByFilter, { proxy: true }),
 );
 
 
