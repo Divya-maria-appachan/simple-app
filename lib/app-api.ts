@@ -6,6 +6,7 @@ import * as custom from "aws-cdk-lib/custom-resources";
 import { generateBatch } from "../shared/util";
 import { movieReviews } from "../seed/movies"; 
 import * as apig from "aws-cdk-lib/aws-apigateway";
+import * as iam from "aws-cdk-lib/aws-iam";
 
 
 import { Construct } from 'constructs';
@@ -93,6 +94,8 @@ const reviewsResource = movieEndpoint.addResource("reviews");
 const reviewerNameResource = reviewsResource.addResource("{ReviewerFilter}");
 const reviewsend = appApi.root.addResource("reviews");
 const reviewerResource = reviewsend.addResource("{ReviewerName}");
+const reviewrTranslate = reviewerResource.addResource("{MovieId}");
+const reviewrTranslates =  reviewrTranslate.addResource("translation");
 
 //Adding new moviw lambda
 const newMovieFn = new lambdanode.NodejsFunction(this, "AddMovieFn", {
@@ -199,6 +202,36 @@ MovieReviewsTable.grantReadData(getReviewsByReviewer);// Grant read access to mo
 
 
 
+const getReviewsTranslate = new lambdanode.NodejsFunction(
+  this,
+  'GetReviewsTranslate',
+  {
+    architecture: lambda.Architecture.ARM_64,
+    runtime: lambda.Runtime.NODEJS_16_X,
+    entry: `${__dirname}/../lambdas/getReviewsTranslate.ts`,
+    timeout: cdk.Duration.seconds(10),
+    memorySize: 128,
+    environment: {
+      TABLE_NAME: MovieReviewsTable.tableName, // Change to movieReviewsTable
+      USER_POOL_ID: props.userPoolId,
+      CLIENT_ID: props.userPoolClientId, 
+      REGION: 'us-east-1',
+    },
+  }
+);
+MovieReviewsTable.grantReadData(getReviewsTranslate);// Grant read access to movieReviewsTable
+
+getReviewsTranslate.role?.attachInlinePolicy(new iam.Policy(this, 'TranslateTextPolicy', {
+  statements: [
+    new iam.PolicyStatement({
+      actions: ['translate:TranslateText'],
+      resources: ['*'], // Consider restricting to specific resources if possible
+    }),
+  ],
+}));
+
+
+
 
 const authorizerFn = new lambdanode.NodejsFunction(this, "AuthorizerFn", {
   ...appCommonFnProps,
@@ -250,8 +283,11 @@ reviewerNameResource.addMethod(
       new apig.LambdaIntegration( getReviewsByReviewer, { proxy: true })
       );
 
- 
-
+    reviewrTranslates.addMethod(
+        'GET', 
+        new apig.LambdaIntegration( getReviewsTranslate, { proxy: true })
+        );
+      
   }
   
 }
