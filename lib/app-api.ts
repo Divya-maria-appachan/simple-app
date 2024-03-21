@@ -221,7 +221,14 @@ const getReviewsTranslate = new lambdanode.NodejsFunction(
 );
 MovieReviewsTable.grantReadData(getReviewsTranslate);// Grant read access to movieReviewsTable
 
-
+getReviewsTranslate.role?.attachInlinePolicy(new iam.Policy(this, 'TranslateTextPolicy', {
+  statements: [
+    new iam.PolicyStatement({
+      actions: ['translate:TranslateText'],
+      resources: ['*'], // Consider restricting to specific resources if possible
+    }),
+  ],
+}));
 
 
 
