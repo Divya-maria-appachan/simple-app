@@ -89,6 +89,8 @@ const appCommonFnProps = {
 
 //Define the Movie end point
 const moviesEndpoint = appApi.root.addResource("movies");
+
+const moviesEndpoints = moviesEndpoint.addResource("reviews")
 const movieEndpoint = moviesEndpoint.addResource("{MovieId}");
 const reviewsResource = movieEndpoint.addResource("reviews");
 const reviewerNameResource = reviewsResource.addResource("{ReviewerFilter}");
@@ -251,7 +253,7 @@ const requestAuthorizer = new apig.RequestAuthorizer(
 
 
 
- moviesEndpoint.addMethod(
+moviesEndpoints.addMethod(
       "POST",
       new apig.LambdaIntegration(newMovieFn, { proxy: true }),{
       authorizer: requestAuthorizer,
